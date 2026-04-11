@@ -280,44 +280,10 @@ export function CanvasStage({ variant = 'editor' }) {
     })
   }, [viewport.w, viewport.h, stageWidth, stageHeight])
 
-  const handleWheel = useCallback(
-    (e) => {
-      e.evt.preventDefault()
-      const stage = stageRef.current
-      if (!stage) return
-      const { zoom: oldScale, pan: oldPan } = viewRef.current
-      const pointer = stage.getPointerPosition()
-      if (!pointer) return
-
-      const w = Math.max(80, viewport.w - VIEW_PAD * 2)
-      const h = Math.max(80, viewport.h - VIEW_PAD * 2)
-      const fit = Math.min(w / stageWidth, h / stageHeight)
-      const minZ = Math.max(0.12, fit * 0.35)
-      const maxZ = fit * 10
-
-      const scaleBy = 1.04 ** (-e.evt.deltaY / 16)
-      let newScale = oldScale * scaleBy
-      newScale = Math.max(minZ, Math.min(maxZ, newScale))
-
-      const anchor = {
-        x: (pointer.x - oldPan.x) / oldScale,
-        y: (pointer.y - oldPan.y) / oldScale,
-      }
-      const rawPan = {
-        x: pointer.x - anchor.x * newScale,
-        y: pointer.y - anchor.y * newScale,
-      }
-      const bounds = getPanBounds(
-        Math.max(100, viewport.w),
-        Math.max(100, viewport.h),
-        stageWidth * newScale,
-        stageHeight * newScale,
-      )
-      setPan(clampPan(rawPan, bounds))
-      setZoom(newScale)
-    },
-    [viewport.w, viewport.h, stageWidth, stageHeight],
-  )
+  /** Molette désactivée sur le canevas ; zoom uniquement via les boutons +/− */
+  const handleStageWheel = useCallback((e) => {
+    e.evt.preventDefault()
+  }, [])
 
   const layer1 = contributions.filter((c) => c.layer === 1)
   const layer2 = contributions.filter((c) => c.layer === 2)
@@ -373,6 +339,49 @@ export function CanvasStage({ variant = 'editor' }) {
 
   const vw = Math.max(100, viewport.w)
   const vh = Math.max(100, viewport.h)
+
+  const zoomLimits = useMemo(() => {
+    const w = Math.max(80, viewport.w - VIEW_PAD * 2)
+    const h = Math.max(80, viewport.h - VIEW_PAD * 2)
+    const fit = Math.min(w / stageWidth, h / stageHeight)
+    return {
+      minZ: Math.max(0.12, fit * 0.35),
+      maxZ: fit * 10,
+    }
+  }, [viewport.w, viewport.h, stageWidth, stageHeight])
+
+  /** delta : +1 = zoom avant, −1 = zoom arrière (ancrage au centre de la vue) */
+  const applyZoomStep = useCallback(
+    (delta) => {
+      const { zoom: oldScale, pan: oldPan } = viewRef.current
+      const { minZ, maxZ } = zoomLimits
+      const scaleBy = delta > 0 ? 1.12 : 1 / 1.12
+      let newScale = oldScale * scaleBy
+      newScale = Math.max(minZ, Math.min(maxZ, newScale))
+      const pointer = { x: vw / 2, y: vh / 2 }
+      const anchor = {
+        x: (pointer.x - oldPan.x) / oldScale,
+        y: (pointer.y - oldPan.y) / oldScale,
+      }
+      const rawPan = {
+        x: pointer.x - anchor.x * newScale,
+        y: pointer.y - anchor.y * newScale,
+      }
+      const nextBounds = getPanBounds(
+        vw,
+        vh,
+        stageWidth * newScale,
+        stageHeight * newScale,
+      )
+      setPan(clampPan(rawPan, nextBounds))
+      setZoom(newScale)
+    },
+    [zoomLimits, vw, vh, stageWidth, stageHeight],
+  )
+
+  const zoomOutDisabled = zoom <= zoomLimits.minZ + 0.002
+  const zoomInDisabled = zoom >= zoomLimits.maxZ - 0.002
+
   const bounds = useMemo(
     () => getPanBounds(vw, vh, stageWidth * zoom, stageHeight * zoom),
     [vw, vh, stageWidth, stageHeight, zoom],
@@ -556,11 +565,37 @@ export function CanvasStage({ variant = 'editor' }) {
     >
       {/** ref uniquement sur la zone du canevas (sans le texte d’aide) pour éviter la boucle ResizeObserver + flex. */}
       <div className="canvas-stage-viewport" ref={containerRef}>
+        <div
+          className="canvas-zoom-controls"
+          role="group"
+          aria-label="Zoom du canevas"
+        >
+          <button
+            type="button"
+            className="canvas-zoom-btn"
+            onClick={() => applyZoomStep(1)}
+            disabled={zoomInDisabled}
+            title="Zoom avant"
+            aria-label="Zoom avant"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="canvas-zoom-btn"
+            onClick={() => applyZoomStep(-1)}
+            disabled={zoomOutDisabled}
+            title="Zoom arrière"
+            aria-label="Zoom arrière"
+          >
+            −
+          </button>
+        </div>
         <Stage
           ref={stageRef}
           width={vw}
           height={vh}
-          onWheel={handleWheel}
+          onWheel={handleStageWheel}
           className="konva-stage-el"
         >
         <Layer>

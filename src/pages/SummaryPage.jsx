@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import emailjs from '@emailjs/browser'
 import { CanvasStage } from '../components/CanvasStage.jsx'
 import { Header } from '../components/Header.jsx'
@@ -35,6 +35,7 @@ function parseContributorName(raw) {
 export function SummaryPage() {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const { contributions, updateContributionContact } = useMosaic()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -86,11 +87,16 @@ export function SummaryPage() {
       return
     }
 
+    const goMerci = () => {
+      navigate('/merci', {
+        replace: true,
+        state: { firstName: firstName.trim() || undefined },
+      })
+    }
+
     if (!EMAILJS_SERVICE || !EMAILJS_TEMPLATE || !EMAILJS_PUBLIC) {
-      setStatus(
-        'Coordonnées enregistrées. Configurez EmailJS (VITE_EMAILJS_*) pour l’envoi automatique.',
-      )
       setBusy(false)
+      goMerci()
       return
     }
     try {
@@ -112,7 +118,7 @@ export function SummaryPage() {
         },
         { publicKey: EMAILJS_PUBLIC },
       )
-      setStatus('Merci ! Votre paiement a été signalé.')
+      goMerci()
     } catch (e) {
       setStatus(
         e?.text || e?.message || (typeof e === 'string' ? e : 'Erreur EmailJS'),
