@@ -280,11 +280,6 @@ export function CanvasStage({ variant = 'editor' }) {
     })
   }, [viewport.w, viewport.h, stageWidth, stageHeight])
 
-  /** Molette désactivée sur le canevas ; zoom uniquement via les boutons +/− */
-  const handleStageWheel = useCallback((e) => {
-    e.evt.preventDefault()
-  }, [])
-
   const layer1 = contributions.filter((c) => c.layer === 1)
   const layer2 = contributions.filter((c) => c.layer === 2)
   const selectedContribution = useMemo(
@@ -595,7 +590,6 @@ export function CanvasStage({ variant = 'editor' }) {
           ref={stageRef}
           width={vw}
           height={vh}
-          onWheel={handleStageWheel}
           className="konva-stage-el"
         >
         <Layer>

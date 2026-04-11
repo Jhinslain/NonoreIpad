@@ -1188,6 +1188,7 @@ a {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  touch-action: manipulation;
 }
 
 .canvas-zoom-btn {
@@ -1229,6 +1230,7 @@ a {
   width: 100%;
   position: relative;
   border-radius: var(--radius);
+  touch-action: pan-y;
   background:
     radial-gradient(
       ellipse 100% 70% at 50% 0%,
@@ -1255,7 +1257,8 @@ a {
     0 1px 0 rgba(255, 255, 255, 0.65) inset,
     0 22px 56px rgba(200, 80, 140, 0.14),
     0 8px 20px rgba(180, 100, 160, 0.1);
-  touch-action: none;
+  /* pan-y : la page peut défiler au doigt sur mobile (évite le piège touch-action:none) */
+  touch-action: pan-y;
 }
 
 .canvas-hint {
@@ -1390,6 +1393,7 @@ a {
   direction: rtl;
   accent-color: #7c3aed;
   z-index: 3;
+  touch-action: manipulation;
 }
 
 .canvas-scrollbar--x-overlay {
@@ -1398,6 +1402,7 @@ a {
   bottom: 8px;
   width: calc(100% - 36px);
   z-index: 3;
+  touch-action: manipulation;
 }
 
 .canvas-scrollbar::-webkit-slider-runnable-track {
