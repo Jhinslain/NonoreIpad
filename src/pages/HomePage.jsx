@@ -87,21 +87,25 @@ export function HomePage() {
         )}
 
         <main className="hero-main">
-          <div className="editor-layout">
-            <div className="hero-canvas-wrap">
-              <CanvasStage />
+          <div className="home-editor-stack">
+            <div className="cta-row cta-row--single home-cta-photo">
+              <button
+                type="button"
+                className="btn-cta btn-cta--add-photo"
+                onClick={handleQuickPick}
+              >
+                <span className="btn-cta__add-icon" aria-hidden="true">
+                  📷
+                </span>
+                <span className="btn-cta__label">Ajouter une photo</span>
+              </button>
             </div>
-            <LayerImagePanel />
-          </div>
-
-          <div className="cta-row cta-row--single">
-            <button
-              type="button"
-              className="btn-cta btn-cta--simple"
-              onClick={handleQuickPick}
-            >
-              <span className="btn-cta__label">Ajouter une photo 📷</span>
-            </button>
+            <div className="editor-layout">
+              <div className="hero-canvas-wrap">
+                <CanvasStage />
+              </div>
+              <LayerImagePanel />
+            </div>
           </div>
           <MosaicFillProgress />
           <input

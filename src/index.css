@@ -518,8 +518,10 @@ a {
   align-items: center;
   justify-content: flex-start;
   gap: 1.1rem;
-  max-width: 26rem;
-  margin: 1.5rem auto 0;
+  width: 100%;
+  max-width: none;
+  margin: 1.5rem 0 0;
+  box-sizing: border-box;
   padding: 1rem 1.15rem 1.05rem;
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.75);
@@ -636,6 +638,35 @@ a {
   padding: 0 1.25rem 2.5rem;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+}
+
+/* Mobile : bouton « Ajouter une photo » au-dessus du canevas ; desktop : ordre inchangé (éditeur puis bouton). */
+.home-editor-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  align-self: stretch;
+}
+
+.home-editor-stack .home-cta-photo {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+@media (min-width: 980px) {
+  .home-editor-stack {
+    gap: 1.35rem;
+  }
+
+  .home-editor-stack .editor-layout {
+    order: 1;
+  }
+
+  .home-editor-stack .home-cta-photo {
+    order: 2;
+  }
 }
 
 .editor-layout {
@@ -685,9 +716,112 @@ a {
 }
 
 .cta-row--single {
-  max-width: 22rem;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.home-cta-photo {
+  width: 100%;
+  max-width: none;
+}
+
+.btn-cta--add-photo {
+  position: relative;
+  width: 100%;
+  min-height: auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.9rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    #f472b6 0%,
+    #ec4899 28%,
+    #db2777 55%,
+    #be185d 100%
+  );
+  box-shadow:
+    0 6px 24px rgba(219, 39, 119, 0.38),
+    0 2px 8px rgba(190, 24, 93, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.btn-cta--add-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.22) 48%,
+    rgba(255, 255, 255, 0.08) 55%,
+    transparent 68%
+  );
+  transform: translateX(-120%);
+  animation: add-photo-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes add-photo-shine {
+  0%,
+  45% {
+    transform: translateX(-120%);
+  }
+  55%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-cta--add-photo::before {
+    animation: none;
+    opacity: 0.12;
+    transform: none;
+  }
+}
+
+.btn-cta--add-photo:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    0 10px 32px rgba(219, 39, 119, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.28) inset;
+  transform: translateY(-2px);
+}
+
+.btn-cta--add-photo:active {
+  transform: scale(0.98);
+  filter: brightness(0.98);
+}
+
+.btn-cta--add-photo:focus-visible {
+  outline: 3px solid rgba(244, 114, 182, 0.65);
+  outline-offset: 3px;
+}
+
+.btn-cta--add-photo .btn-cta__add-icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+}
+
+.btn-cta--add-photo .btn-cta__label {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px rgba(88, 28, 60, 0.25);
 }
 
 .btn-cta {
