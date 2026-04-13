@@ -140,7 +140,7 @@ export function MosaicProvider({ children }) {
   }, [savedContributions, cellWidth, cellHeight, stageWidth, stageHeight])
 
   /**
-   * Ajoute une image en **brouillon** uniquement (pas de BDD tant qu’on n’a pas cliqué « Sauvegarder & Participer »).
+   * Ajoute une image en **brouillon** uniquement (pas de BDD tant qu’on n’a pas confirmé « J’ai payé ! »).
    */
   const addDraftContribution = useCallback(async (draft) => {
     const id = crypto.randomUUID()
@@ -208,7 +208,8 @@ export function MosaicProvider({ children }) {
 
   /**
    * Envoie tous les brouillons vers Storage + Postgres, puis recharge la liste serveur.
-   * Sans brouillon : ne fait rien en base (navigation / paiement sur l’existant possible).
+   * Appelé depuis la page récapitulatif au moment de « J’ai payé ! » (pas au clic « Sauvegarder & Participer »).
+   * Sans brouillon : ne fait rien en base.
    */
   const persistDraftsToSupabase = useCallback(async () => {
     const drafts = draftContributionsRef.current.filter((c) => c.isDraft)

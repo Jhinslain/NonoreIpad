@@ -116,5 +116,17 @@ export function createSmartFolioClipFunc() {
 /** Alias historique : même silhouette Smart Folio + rabat. */
 export const createFolioClipFunc = createSmartFolioClipFunc
 
+/**
+ * Applique le clip silhouette folio sur un contexte Canvas 2D (export image).
+ */
+export function applyFolioClip(ctx, W, H) {
+  const { bodyLeft, bodyW, y0, flapW, flapH, R, rf, rFlapRight } =
+    computeLayout(W, H)
+  ctx.beginPath()
+  appendRoundRect(ctx, bodyLeft, 0, bodyW, H, R)
+  appendFlapPath(ctx, y0, flapW, flapH, rf, rFlapRight)
+  ctx.clip()
+}
+
 /** Fraction de la largeur totale occupée par le rabat (11/45). */
 export const FLAP_WIDTH_RATIO = GRID_FLAP_COLS / GRID_COLS

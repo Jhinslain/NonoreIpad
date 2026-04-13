@@ -42,8 +42,7 @@ export function CountdownBanner() {
             <span className="countdown-banner__emoji" aria-hidden="true">
               🎊
             </span>{' '}
-            Plus que <strong>{days}</strong> jour{days !== 1 ? 's' : ''},{' '}
-            <strong>{hours}</strong> heure{hours !== 1 ? 's' : ''} pour participer
+            Plus que <strong>{days}</strong> jour{days !== 1 ? 's' : ''}pour participer
             !
             <span className="countdown-banner__sparkles" aria-hidden="true">
               {' '}

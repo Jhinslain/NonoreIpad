@@ -54,8 +54,7 @@ export function MosaicFillProgress() {
       <div className="fill-progress-copy">
         <p className="fill-progress-copy__label">Progression</p>
         <p className="fill-caption">
-          Part de la grille déjà couverte par les contributions — objectif
-          collectif.
+          Part de la grille déjà couverte par tout le monde. Merci !
         </p>
       </div>
     </div>

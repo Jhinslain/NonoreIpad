@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMosaic } from '../context/MosaicContext.jsx'
 import { useStageLayout } from '../context/StageLayoutContext.jsx'
 import { cellsFromGeometryClipped } from '../utils/grid.js'
 
 const PRICE_PER_CELL_EUR = 0.4
+const MIN_PARTICIPATION_EUR = 0.01
 
 function formatEur(n) {
   return n.toLocaleString('fr-FR', {
@@ -15,6 +16,7 @@ function formatEur(n) {
 
 export function LayerImagePanel() {
   const navigate = useNavigate()
+  const [amountInput, setAmountInput] = useState('')
   const {
     contributions,
     savedContributions,
@@ -22,10 +24,6 @@ export function LayerImagePanel() {
     cellHeight,
     loading,
     selectedPremiumId,
-    persistDraftsToSupabase,
-    savingDrafts,
-    draftCount,
-    supabaseReady,
   } = useMosaic()
   const { stageWidth, stageHeight } = useStageLayout()
 
@@ -61,26 +59,29 @@ export function LayerImagePanel() {
     return match ?? sorted[0]
   }, [sorted, selectedPremiumId])
 
-  const totalAmountEur = totalCells * PRICE_PER_CELL_EUR
+  const suggestedAmountEur = totalCells * PRICE_PER_CELL_EUR
 
-  const handleSaveAndParticipate = async () => {
-    if (!selectedContribution || totalCells <= 0) return
-    try {
-      if (supabaseReady && draftCount > 0) {
-        await persistDraftsToSupabase()
-      }
-      navigate(`/summary/${selectedContribution.id}`, {
-        state: { displayAmountEuros: totalAmountEur },
-      })
-    } catch {
-      /* configWarning géré par le contexte */
+  useLayoutEffect(() => {
+    if (totalCells > 0) {
+      setAmountInput(suggestedAmountEur.toFixed(2))
     }
+  }, [totalCells, suggestedAmountEur])
+
+  const parsedAmount = parseFloat(
+    String(amountInput).trim().replace(',', '.'),
+  )
+  const amountValid =
+    Number.isFinite(parsedAmount) && parsedAmount >= MIN_PARTICIPATION_EUR
+
+  const handleSaveAndParticipate = () => {
+    if (!selectedContribution || totalCells <= 0 || !amountValid) return
+    const rounded = Math.round(parsedAmount * 100) / 100
+    navigate(`/summary/${selectedContribution.id}`, {
+      state: { displayAmountEuros: rounded },
+    })
   }
 
-  const saveDisabled =
-    !selectedContribution ||
-    savingDrafts ||
-    (draftCount > 0 && !supabaseReady)
+  const saveDisabled = !selectedContribution || !amountValid
 
   return (
     <aside className="layer-panel" aria-label="Brouillons à enregistrer">
@@ -148,28 +149,43 @@ export function LayerImagePanel() {
       {totalCells > 0 && (
         <div className="layer-panel__payment layer-panel__payment--ready">
           <p className="layer-panel__amount-intro">
-            Vous voudrez participer d'un montant de
+            Montant conseillé selon le nombre de cellules prises :{' '}
+            <strong>{formatEur(suggestedAmountEur)}</strong>
           </p>
-          <div className="layer-panel__amount-display">
-            <span className="layer-panel__amount-number layer-panel__amount-number--live">
-              {formatEur(totalAmountEur)}
+          <label className="layer-panel__amount-field">
+            <span className="layer-panel__amount-field-label">
+              Tu peux modifier le montant avant de continuer
             </span>
-            <span className="layer-panel__amount-unit">EUR</span>
-          </div>
+            <div className="layer-panel__amount-input-row">
+              <input
+                id="layer-panel-participation-amount"
+                className="layer-panel__amount-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                aria-invalid={!amountValid}
+                aria-label="Montant de participation en euros"
+              />
+              <span className="layer-panel__amount-unit">EUR</span>
+            </div>
+          </label>
+          {!amountValid && (
+            <p className="layer-panel__amount-error" role="alert">
+              Indique un montant d’au moins {formatEur(MIN_PARTICIPATION_EUR)}.
+            </p>
+          )}
           <button
             type="button"
             className="layer-panel__cta"
             disabled={saveDisabled}
             onClick={handleSaveAndParticipate}
           >
-            <span className="layer-panel__cta-label">
-              {savingDrafts ? 'Enregistrement…' : 'Sauvegarder & Participer'}
+            <span className="layer-panel__cta-label">Sauvegarder & Participer</span>
+            <span className="layer-panel__cta-icon" aria-hidden="true">
+              →
             </span>
-            {!savingDrafts && (
-              <span className="layer-panel__cta-icon" aria-hidden="true">
-                →
-              </span>
-            )}
           </button>
         </div>
       )}

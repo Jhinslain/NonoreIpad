@@ -9,6 +9,26 @@ export function snapPosition(x, y, cellW, cellH) {
   }
 }
 
+/**
+ * Aligne le rectangle d’une contribution sur la grille (indices de cellules entiers)
+ * et stabilise les flottants pour limiter les écarts visibles entre images adjacentes.
+ */
+export function snapContributionRect(x, y, width, height, cellW, cellH) {
+  const cw = Math.max(cellW, 1e-9)
+  const ch = Math.max(cellH, 1e-9)
+  const col = Math.round(x / cw)
+  const row = Math.round(y / ch)
+  const cols = Math.max(2, Math.round(width / cw))
+  const rows = Math.max(2, Math.round(height / ch))
+  const round6 = (n) => Math.round(n * 1e6) / 1e6
+  return {
+    x: round6(col * cw),
+    y: round6(row * ch),
+    width: round6(cols * cw),
+    height: round6(rows * ch),
+  }
+}
+
 /** Taille du bloc Layer 1 en pixels (1, 4 ou 9 cellules). */
 export function layer1Dimensions(cellSpanKey, cellW, cellH) {
   const n = cellSpanKey === 9 ? 3 : cellSpanKey === 4 ? 2 : 1

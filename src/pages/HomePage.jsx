@@ -1,8 +1,10 @@
 import { useRef } from 'react'
 import { CanvasStage } from '../components/CanvasStage.jsx'
 import { useStageLayout } from '../context/StageLayoutContext.jsx'
+import { clampToStage, snapContributionRect } from '../utils/grid.js'
 import { CountdownBanner } from '../components/CountdownBanner.jsx'
 import { Header } from '../components/Header.jsx'
+import { MosaicDownloadButton } from '../components/MosaicDownloadButton.jsx'
 import { MosaicFillProgress } from '../components/MosaicFillProgress.jsx'
 import { LayerImagePanel } from '../components/LayerImagePanel.jsx'
 import { useMosaic } from '../context/MosaicContext.jsx'
@@ -55,8 +57,24 @@ export function HomePage() {
         ),
       }
 
-      const x = (stageWidth - snapped.width) / 2
-      const y = (stageHeight - snapped.height) / 2
+      const rawX = (stageWidth - snapped.width) / 2
+      const rawY = (stageHeight - snapped.height) / 2
+      const aligned = snapContributionRect(
+        rawX,
+        rawY,
+        snapped.width,
+        snapped.height,
+        cellWidth,
+        cellHeight,
+      )
+      const pos = clampToStage(
+        aligned.x,
+        aligned.y,
+        aligned.width,
+        aligned.height,
+        stageWidth,
+        stageHeight,
+      )
 
       const contribution = await addDraftContribution({
         imageBlob: file,
@@ -66,10 +84,10 @@ export function HomePage() {
         priceEuros: 1,
         contributorName: null,
         contributorEmail: null,
-        x,
-        y,
-        width: snapped.width,
-        height: snapped.height,
+        x: pos.x,
+        y: pos.y,
+        width: aligned.width,
+        height: aligned.height,
         rotation: 0,
       })
       setSelectedPremiumId(contribution.id)
@@ -108,6 +126,7 @@ export function HomePage() {
             </div>
           </div>
           <MosaicFillProgress />
+          <MosaicDownloadButton />
           <input
             ref={quickInputRef}
             type="file"

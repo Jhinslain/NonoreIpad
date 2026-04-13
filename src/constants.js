@@ -71,6 +71,10 @@ export const IPAD_LOGIC_LONG = 2752
 export const CASE_TEMPLATE_URL =
   import.meta.env.VITE_CASE_TEMPLATE_URL || '/image_0.png'
 
+/** E-mail affiché dans l’aide (participation simplifiée). */
+export const HELP_CONTACT_EMAIL =
+  import.meta.env.VITE_HELP_CONTACT_EMAIL || 'levreaughislain@gmail.com'
+
 export const MASK_TYPES = {
   rect: 'Rectangle',
   square: 'Carré (1:1)',

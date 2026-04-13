@@ -4,6 +4,7 @@ import {
   HERO_H2,
   RECIPIENT_NAME,
 } from '../constants.js'
+import { HeroHelp } from './HeroHelp.jsx'
 
 export function Header() {
   return (
@@ -31,6 +32,7 @@ export function Header() {
         </span>
         {HERO_H2}
       </h2>
+      <HeroHelp />
     </header>
   )
 }

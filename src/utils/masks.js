@@ -21,46 +21,55 @@ function drawTriangleDiagonal(ctx, w, h) {
 }
 
 /**
+ * Trace le masque d’une contribution (Canvas 2D ou Konva). `ctx.beginPath()` est appelé ici.
+ * Coordonnées locales 0…w, 0…h. Ne pas appeler `clip()` : Konva le fait après la clipFunc.
+ *
+ * @param {'rect'|'square'|'circle'|'heart'|'triangle'} maskType
+ */
+export function traceContributionMaskPath(ctx, w, h, maskType) {
+  const t = maskType || 'rect'
+  ctx.beginPath()
+
+  switch (t) {
+    case 'circle': {
+      const r = Math.min(w, h) / 2
+      ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2, false)
+      break
+    }
+    case 'heart': {
+      drawHeartBezier(ctx, w, h)
+      break
+    }
+    case 'triangle':
+      drawTriangleDiagonal(ctx, w, h)
+      break
+    case 'square': {
+      const side = Math.min(w, h)
+      const ox = (w - side) / 2
+      const oy = (h - side) / 2
+      const bleed = 0.65
+      ctx.rect(ox - bleed, oy - bleed, side + 2 * bleed, side + 2 * bleed)
+      break
+    }
+    case 'rect':
+    default: {
+      const bleed = 0.65
+      ctx.rect(-bleed, -bleed, w + 2 * bleed, h + 2 * bleed)
+      break
+    }
+  }
+}
+
+/**
  * Fabrique une clipFunc Konva : `(ctx, shape) => void`.
  * Définir `width` / `height` sur le `Group` pour que `shape.width()` / `shape.height()` soient corrects.
  * Ne pas appeler `ctx.clip()` : Konva l’applique après cette fonction.
- *
- * Exemple react-konva :
- * `<Group width={w} height={h} clipFunc={createKonvaClipFunc('heart')}><Image … /></Group>`
  *
  * @param {'rect'|'square'|'circle'|'heart'|'triangle'} maskType
  */
 export function createKonvaClipFunc(maskType) {
   return (ctx, shape) => {
-    const w = shape.width()
-    const h = shape.height()
-    ctx.beginPath()
-
-    switch (maskType) {
-      case 'circle': {
-        const r = Math.min(w, h) / 2
-        ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2, false)
-        break
-      }
-      case 'heart': {
-        drawHeartBezier(ctx, w, h)
-        break
-      }
-      case 'triangle':
-        drawTriangleDiagonal(ctx, w, h)
-        break
-      case 'square': {
-        const side = Math.min(w, h)
-        const ox = (w - side) / 2
-        const oy = (h - side) / 2
-        ctx.rect(ox, oy, side, side)
-        break
-      }
-      case 'rect':
-      default:
-        ctx.rect(0, 0, w, h)
-        break
-    }
+    traceContributionMaskPath(ctx, shape.width(), shape.height(), maskType)
   }
 }
 

@@ -13,25 +13,25 @@ export function ThankYouPage() {
           <div className="thank-you-page">
             <div className="thank-you-card">
               <p className="thank-you-emoji" aria-hidden="true">
-                🙏
+                💛
               </p>
               <h1 className="thank-you-title">Merci infiniment !</h1>
               <p className="thank-you-text">
                 {firstName ? (
                   <>
-                    <strong>{firstName}</strong>, merci pour votre participation
-                    à la cagnotte. Vos coordonnées sont bien enregistrées.
+                    <strong>{firstName}</strong>, merci d’avoir participé à la
+                    cagnotte pour l'anniversaire de Nonore.
                   </>
                 ) : (
                   <>
-                    Merci pour votre participation à la cagnotte. Vos
-                    coordonnées sont bien enregistrées.
+                    Merci d’avoir participé à la cagnotte, c’est super sympa de
+                    ta part pour l'anniversaire de Nonore.
                   </>
                 )}
               </p>
               <p className="thank-you-sub muted">
-                Votre contribution compte pour la mosaïque et le cadeau
-                collectif.
+                Ta contribution à été ajoutée à la mosaïque et pour le cadeau
+                collectif. Encore merci !
               </p>
               <Link to="/" className="btn btn-primary thank-you-back">
                 Retour à la mosaïque

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import emailjs from '@emailjs/browser'
 import { CanvasStage } from '../components/CanvasStage.jsx'
@@ -36,12 +36,25 @@ export function SummaryPage() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { contributions, updateContributionContact } = useMosaic()
+  const { contributions, updateContributionContact, persistDraftsToSupabase } =
+    useMosaic()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState(null)
   const [busy, setBusy] = useState(false)
+  /** null | 'upload' | 'contact' | 'email' — pour le libellé du chargement « J’ai payé ! » */
+  const [payPhase, setPayPhase] = useState(null)
+  const [checkoutStep, setCheckoutStep] = useState(1)
+  const [isMobileCheckoutWizard, setIsMobileCheckoutWizard] = useState(false)
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const apply = () => setIsMobileCheckoutWizard(mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
   const contribution = useMemo(() => {
     if (location.state?.contribution?.id === id) {
@@ -67,6 +80,20 @@ export function SummaryPage() {
 
   const paypalUrl = buildPayPalUrl(amount)
 
+  const stepTitles = useMemo(
+    () => ({
+      1: 'Aperçu actuel de la mosaïque',
+      2: 'Vos coordonnées',
+      3: `Je participe à ${amount.toFixed(2)} €`,
+    }),
+    [amount],
+  )
+
+  const stepVisibleClass = (step) =>
+    !isMobileCheckoutWizard || checkoutStep === step
+      ? 'summary-step summary-step--shown'
+      : 'summary-step summary-step--hidden'
+
   const sendPaidEmail = async () => {
     if (!contribution) return
     if (!email.trim()) {
@@ -75,19 +102,29 @@ export function SummaryPage() {
     }
     setBusy(true)
     setStatus(null)
+    setPayPhase(contribution.isDraft ? 'upload' : 'contact')
     try {
+      if (contribution.isDraft) {
+        await persistDraftsToSupabase()
+      }
+      setPayPhase('contact')
       await updateContributionContact(contribution.id, {
         firstName,
         lastName,
         email,
       })
     } catch (e) {
-      setStatus(e?.message || 'Impossible d’enregistrer vos coordonnées.')
+      setPayPhase(null)
+      setStatus(
+        e?.message ||
+          'Impossible d’enregistrer la participation ou vos coordonnées.',
+      )
       setBusy(false)
       return
     }
 
     const goMerci = () => {
+      setPayPhase(null)
       navigate('/merci', {
         replace: true,
         state: { firstName: firstName.trim() || undefined },
@@ -95,11 +132,13 @@ export function SummaryPage() {
     }
 
     if (!EMAILJS_SERVICE || !EMAILJS_TEMPLATE || !EMAILJS_PUBLIC) {
+      setPayPhase(null)
       setBusy(false)
       goMerci()
       return
     }
     try {
+      setPayPhase('email')
       const contributor_name = [firstName.trim(), lastName.trim()]
         .filter(Boolean)
         .join(' ')
@@ -124,6 +163,7 @@ export function SummaryPage() {
         e?.text || e?.message || (typeof e === 'string' ? e : 'Erreur EmailJS'),
       )
     } finally {
+      setPayPhase(null)
       setBusy(false)
     }
   }
@@ -151,24 +191,43 @@ export function SummaryPage() {
         <main className="hero-main">
           <div className="summary-page summary-page--checkout">
             <h1 className="summary-page__title">Paiement & participation</h1>
-            <p className="summary-page__intro muted">
-              Vérifiez l’aperçu sur la mosaïque, renseignez vos coordonnées,
-              puis réglez le montant et confirmez votre paiement.
+            <p
+              className="summary-page__intro muted summary-page__intro--desktop"
+              aria-hidden={isMobileCheckoutWizard}
+            >
+              Étape 1 : Aperçu actuel de la mosaïque {'>'} Étape 2 : Vos
+              coordonnées {'>'} Étape 3 : Je participe à {amount.toFixed(2)} €
             </p>
+            {isMobileCheckoutWizard && (
+              <p className="summary-page__intro muted summary-page__intro--mobile" aria-live="polite">
+                <span className="summary-page__step-badge">
+                  Étape {checkoutStep} sur 3
+                </span>
+                <span className="summary-page__step-label">
+                  {stepTitles[checkoutStep]}
+                </span>
+              </p>
+            )}
 
             <div className="summary-layout summary-layout--stacked">
               <section
-                className="summary-result"
+                className={`summary-result ${stepVisibleClass(1)}`}
                 aria-label="Aperçu de la mosaïque"
+                aria-hidden={isMobileCheckoutWizard && checkoutStep !== 1}
               >
-                <h2 className="summary-result__title">Aperçu actuel de la mosaïque</h2>
+                <h2 className="summary-result__title">
+                  Étape 1 · Aperçu actuel de la mosaïque
+                </h2>
                 <div className="summary-canvas-wrap">
                   <CanvasStage variant="summary" />
                 </div>
               </section>
 
-              <div className="summary-card summary-card--form">
-                <h2 className="summary-card__h">Vos coordonnées</h2>
+              <div
+                className={`summary-card summary-card--form ${stepVisibleClass(2)}`}
+                aria-hidden={isMobileCheckoutWizard && checkoutStep !== 2}
+              >
+                <h2 className="summary-card__h">Étape 2 · Vos coordonnées</h2>
                 <div className="summary-form">
                   <label className="summary-field">
                     <span>Prénom</span>
@@ -204,9 +263,12 @@ export function SummaryPage() {
                 </div>
               </div>
 
-              <div className="summary-card summary-card--pay">
+              <div
+                className={`summary-card summary-card--pay ${stepVisibleClass(3)}`}
+                aria-hidden={isMobileCheckoutWizard && checkoutStep !== 3}
+              >
                 <p className="summary-amount-line">
-                  <strong>Montant à régler :</strong>{' '}
+                  <strong>Étape 3 · Je participe à :</strong>{' '}
                   <span className="summary-amount-value">
                     {amount.toFixed(2)} €
                   </span>
@@ -238,15 +300,66 @@ export function SummaryPage() {
                   disabled={busy}
                   onClick={sendPaidEmail}
                 >
-                  {busy ? 'Envoi…' : 'J’ai payé !'}
+                  {busy ? 'Patienter…' : 'J’ai payé !'}
                 </button>
                 {status && <p className="summary-status">{status}</p>}
               </div>
 
-              <Link to="/" className="back-link summary-back">
+              {isMobileCheckoutWizard && (
+                <div
+                  className="summary-wizard-nav"
+                  role="group"
+                  aria-label="Navigation entre les étapes"
+                >
+                  <button
+                    type="button"
+                    className="btn btn-ghost summary-wizard-nav__prev"
+                    disabled={checkoutStep <= 1 || busy}
+                    onClick={() => setCheckoutStep((s) => Math.max(1, s - 1))}
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary summary-wizard-nav__next"
+                    disabled={checkoutStep >= 3 || busy}
+                    onClick={() => setCheckoutStep((s) => Math.min(3, s + 1))}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              )}
+
+              <Link
+                to="/"
+                className={`back-link summary-back${busy ? ' summary-back--disabled' : ''}`}
+                aria-disabled={busy}
+                onClick={(e) => busy && e.preventDefault()}
+              >
                 ← Retour à l’éditeur
               </Link>
             </div>
+
+            {busy && payPhase && (
+              <div
+                className="summary-pay-overlay"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <div className="summary-pay-overlay__box">
+                  <span className="summary-pay-spinner" aria-hidden="true" />
+                  <p className="summary-pay-overlay__text">
+                    {payPhase === 'upload' &&
+                      'Enregistrement des photos sur le serveur… Avec plusieurs images, ça peut prendre un peu de temps.'}
+                    {payPhase === 'contact' &&
+                      'Enregistrement de tes coordonnées…'}
+                    {payPhase === 'email' &&
+                      'Envoi de la confirmation par e-mail…'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>
