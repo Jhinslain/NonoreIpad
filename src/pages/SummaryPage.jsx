@@ -36,8 +36,11 @@ export function SummaryPage() {
   const { id } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const { contributions, updateContributionContact, persistDraftsToSupabase } =
-    useMosaic()
+  const {
+    contributions,
+    updateBatchPaymentAndContact,
+    persistDraftsToSupabase,
+  } = useMosaic()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -104,14 +107,17 @@ export function SummaryPage() {
     setStatus(null)
     setPayPhase(contribution.isDraft ? 'upload' : 'contact')
     try {
+      let idsToUpdate = [contribution.id]
       if (contribution.isDraft) {
-        await persistDraftsToSupabase()
+        const { insertedIds } = await persistDraftsToSupabase()
+        if (insertedIds.length > 0) idsToUpdate = insertedIds
       }
       setPayPhase('contact')
-      await updateContributionContact(contribution.id, {
+      await updateBatchPaymentAndContact(idsToUpdate, {
         firstName,
         lastName,
         email,
+        paidTotalEuros: amount,
       })
     } catch (e) {
       setPayPhase(null)
@@ -300,7 +306,7 @@ export function SummaryPage() {
                   disabled={busy}
                   onClick={sendPaidEmail}
                 >
-                  {busy ? 'Patienter…' : 'J’ai payé !'}
+                  {busy ? 'Patienter…' : 'J’ai participé !'}
                 </button>
                 {status && <p className="summary-status">{status}</p>}
               </div>

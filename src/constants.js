@@ -30,6 +30,9 @@ export const FLAP_CORNER_ROWS_EACH = 7
 /** Objectif de collecte (1000 €). */
 export const GOAL_EUROS = 1000
 
+/** Tarif par cellule occupée (€) — même base que le panneau de participation. */
+export const PARTICIPATION_PRICE_PER_CELL_EUR = 0.4
+
 /** Prénom à mettre en avant (couleur). */
 export const RECIPIENT_NAME =
   import.meta.env.VITE_RECIPIENT_NAME || 'Nonore'

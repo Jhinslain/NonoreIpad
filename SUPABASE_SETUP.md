@@ -56,6 +56,15 @@ create policy "contributions_delete" on public.contributions for delete using (t
 
 Pour la production, restreignez `insert` / `update` / `delete` (auth, clé service côté serveur, etc.).
 
+### Colonnes supplémentaires (lots, prix payé, heure Paris)
+
+Si la table existe déjà, exécutez une fois le fichier [`supabase/sql/003_contributions_batch_pricing_paris.sql`](./supabase/sql/003_contributions_batch_pricing_paris.sql) dans **SQL Editor** : `paid_total_cents`, `payment_batch_id`, `created_at_paris`. Sans ce script, l’app échouera à l’insert (colonnes manquantes).
+
+- `price_cents` : prix calculé **par image** (cellules × tarif).
+- `paid_total_cents` : montant payé pour **tout le lot** (identique sur chaque ligne du même `payment_batch_id`).
+- `created_at` : instant UTC (`timestamptz`, comportement normal).
+- `created_at_paris` : heure civile **Europe/Paris** au moment de l’insert, pour lecture directe dans le tableau.
+
 ## 3. Bucket Storage `mosaic-images`
 
 Sans ce bucket, l’upload renvoie **`StorageApiError: Bucket not found`** ou **HTTP 400** sur `/storage/v1/object/...`.

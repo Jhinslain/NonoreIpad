@@ -7,10 +7,12 @@ import {
   useRef,
   useState,
 } from 'react'
-import { GOAL_EUROS } from '../constants.js'
+import { GOAL_EUROS, PARTICIPATION_PRICE_PER_CELL_EUR } from '../constants.js'
 import { useStageLayout } from './StageLayoutContext.jsx'
 import { computeGridFillStats } from '../utils/gridFill.js'
+import { cellsFromGeometryClipped } from '../utils/grid.js'
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient.js'
+import { formatParisLocalTimestampForDb } from '../utils/parisTime.js'
 
 const MosaicContext = createContext(null)
 
@@ -28,10 +30,14 @@ function rowToContribution(row) {
     maskType: row.mask_type ?? 'rect',
     imageUrl: row.image_url,
     priceEuros: (row.price_cents ?? 0) / 100,
+    paidTotalEuros:
+      row.paid_total_cents != null ? row.paid_total_cents / 100 : null,
+    paymentBatchId: row.payment_batch_id ?? null,
     status: row.status ?? 'pending',
     contributorName: row.contributor_name,
     contributorEmail: row.contributor_email,
     createdAt: row.created_at,
+    createdAtParis: row.created_at_paris ?? null,
     isDraft: false,
   }
 }
@@ -115,13 +121,24 @@ export function MosaicProvider({ children }) {
     }
   }, [refresh])
 
-  const validatedTotal = useMemo(
-    () =>
-      savedContributions
-        .filter((c) => c.status === 'validated')
-        .reduce((s, c) => s + c.priceEuros, 0),
-    [savedContributions],
-  )
+  const validatedTotal = useMemo(() => {
+    const batchCounted = new Set()
+    let total = 0
+    for (const c of savedContributions) {
+      if (c.status !== 'validated') continue
+      const paid = c.paidTotalEuros
+      if (c.paymentBatchId != null && paid != null) {
+        if (batchCounted.has(c.paymentBatchId)) continue
+        batchCounted.add(c.paymentBatchId)
+        total += paid
+      } else if (paid != null) {
+        total += paid
+      } else {
+        total += c.priceEuros
+      }
+    }
+    return total
+  }, [savedContributions])
 
   /** Avancement global : uniquement ce qui est en base (visible par tous). */
   const { gridFillPercent, gridCellsFilled, gridCellsTotal } = useMemo(() => {
@@ -169,9 +186,9 @@ export function MosaicProvider({ children }) {
     return contribution
   }, [])
 
-  const insertOneContributionRemote = useCallback(async (d, imageBlob) => {
+  const insertOneContributionRemote = useCallback(async (d, imageBlob, opts = {}) => {
     const id = d.id
-    const priceEuros = d.priceEuros
+    const { calculatedPriceEuros, paymentBatchId } = opts
     const path = `mosaic/${id}.png`
     const { error: upErr } = await supabase.storage
       .from('mosaic-images')
@@ -195,10 +212,12 @@ export function MosaicProvider({ children }) {
       rotation: d.rotation ?? 0,
       mask_type: d.maskType,
       image_url: imageUrl,
-      price_cents: Math.round(priceEuros * 100),
+      price_cents: Math.round(Number(calculatedPriceEuros) * 100),
       status: 'pending',
       contributor_name: d.contributorName ?? null,
       contributor_email: d.contributorEmail ?? null,
+      payment_batch_id: paymentBatchId ?? null,
+      created_at_paris: formatParisLocalTimestampForDb(),
     }
 
     const { error: insErr } = await supabase.from('contributions').insert(row)
@@ -214,7 +233,7 @@ export function MosaicProvider({ children }) {
   const persistDraftsToSupabase = useCallback(async () => {
     const drafts = draftContributionsRef.current.filter((c) => c.isDraft)
     if (drafts.length === 0) {
-      return { primaryId: null }
+      return { primaryId: null, insertedIds: [] }
     }
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase non configuré.')
@@ -223,17 +242,31 @@ export function MosaicProvider({ children }) {
     setSavingDrafts(true)
     setConfigWarning(null)
     let primaryId = null
+    const paymentBatchId = crypto.randomUUID()
+    const insertedIds = []
     try {
       for (const d of drafts) {
+        const { cells } = cellsFromGeometryClipped(
+          d,
+          cellWidth,
+          cellHeight,
+          stageWidth,
+          stageHeight,
+        )
+        const calculatedPriceEuros = cells * PARTICIPATION_PRICE_PER_CELL_EUR
         const res = await fetch(d.imageUrl)
         const blob = await res.blob()
-        await insertOneContributionRemote(d, blob)
+        await insertOneContributionRemote(d, blob, {
+          calculatedPriceEuros,
+          paymentBatchId,
+        })
+        insertedIds.push(d.id)
         if (!primaryId) primaryId = d.id
         if (d.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(d.imageUrl)
       }
       setDraftContributions([])
       await refresh()
-      return { primaryId }
+      return { primaryId, insertedIds }
     } catch (e) {
       console.error(e)
       setConfigWarning(e?.message || 'Échec de l’enregistrement')
@@ -241,7 +274,14 @@ export function MosaicProvider({ children }) {
     } finally {
       setSavingDrafts(false)
     }
-  }, [insertOneContributionRemote, refresh])
+  }, [
+    insertOneContributionRemote,
+    refresh,
+    cellWidth,
+    cellHeight,
+    stageWidth,
+    stageHeight,
+  ])
 
   const updateContributionGeometry = useCallback(async (id, geom) => {
     const { x, y, width, height, rotation } = geom
@@ -340,35 +380,60 @@ export function MosaicProvider({ children }) {
     await supabase.from('contributions').update({ image_url: imageUrl }).eq('id', id)
   }, [])
 
-  const updateContributionContact = useCallback(
-    async (id, { firstName, lastName, email }) => {
+  const updateBatchPaymentAndContact = useCallback(
+    async (ids, { firstName, lastName, email, paidTotalEuros }) => {
+      const idList = (ids || []).filter(Boolean)
+      if (idList.length === 0) return
+
       const contributor_name = [firstName?.trim(), lastName?.trim()]
         .filter(Boolean)
         .join(' ')
         .trim()
       const contributor_email = email?.trim() || null
+
+      const patch = {
+        contributor_name: contributor_name || null,
+        contributor_email,
+      }
+      if (paidTotalEuros != null && Number.isFinite(paidTotalEuros)) {
+        patch.paid_total_cents = Math.round(paidTotalEuros * 100)
+      }
+
       setSavedContributions((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                contributorName: contributor_name || null,
-                contributorEmail: contributor_email,
-              }
-            : c,
-        ),
+        prev.map((c) => {
+          if (!idList.includes(c.id)) return c
+          const next = {
+            ...c,
+            contributorName: contributor_name || null,
+            contributorEmail: contributor_email,
+          }
+          if (paidTotalEuros != null && Number.isFinite(paidTotalEuros)) {
+            next.paidTotalEuros = paidTotalEuros
+          }
+          return next
+        }),
       )
+
       if (!isSupabaseConfigured()) return
       const { error } = await supabase
         .from('contributions')
-        .update({
-          contributor_name: contributor_name || null,
-          contributor_email,
-        })
-        .eq('id', id)
+        .update(patch)
+        .in('id', idList)
       if (error) throw error
     },
     [],
+  )
+
+  const updateContributionContact = useCallback(
+    async (id, { firstName, lastName, email }) => {
+      await updateBatchPaymentAndContact([id], {
+        firstName,
+        lastName,
+        email,
+        paidTotalEuros: null,
+      })
+    },
+    [updateBatchPaymentAndContact],
   )
 
   const value = useMemo(
@@ -395,6 +460,7 @@ export function MosaicProvider({ children }) {
       updateContributionMask,
       updateContributionImage,
       updateContributionContact,
+      updateBatchPaymentAndContact,
       removeContribution,
       configWarning,
       supabaseReady: isSupabaseConfigured(),
@@ -420,6 +486,7 @@ export function MosaicProvider({ children }) {
       updateContributionMask,
       updateContributionImage,
       updateContributionContact,
+      updateBatchPaymentAndContact,
       removeContribution,
       configWarning,
     ],

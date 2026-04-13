@@ -2,9 +2,8 @@ import { useLayoutEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMosaic } from '../context/MosaicContext.jsx'
 import { useStageLayout } from '../context/StageLayoutContext.jsx'
+import { PARTICIPATION_PRICE_PER_CELL_EUR } from '../constants.js'
 import { cellsFromGeometryClipped } from '../utils/grid.js'
-
-const PRICE_PER_CELL_EUR = 0.4
 const MIN_PARTICIPATION_EUR = 0.01
 
 function formatEur(n) {
@@ -59,7 +58,7 @@ export function LayerImagePanel() {
     return match ?? sorted[0]
   }, [sorted, selectedPremiumId])
 
-  const suggestedAmountEur = totalCells * PRICE_PER_CELL_EUR
+  const suggestedAmountEur = totalCells * PARTICIPATION_PRICE_PER_CELL_EUR
 
   useLayoutEffect(() => {
     if (totalCells > 0) {
