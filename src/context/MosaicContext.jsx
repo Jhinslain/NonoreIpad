@@ -182,8 +182,20 @@ export function MosaicProvider({ children }) {
       isDraft: true,
     }
 
-    setDraftContributions((prev) => [contribution, ...prev])
+    setDraftContributions((prev) => [...prev, contribution])
     return contribution
+  }, [])
+
+  /** Remonte un brouillon au-dessus des autres (ordre de rendu Konva = z-order). */
+  const bringDraftToFront = useCallback((id) => {
+    setDraftContributions((prev) => {
+      const idx = prev.findIndex((c) => c.id === id && c.isDraft)
+      if (idx < 0) return prev
+      const next = [...prev]
+      const [item] = next.splice(idx, 1)
+      next.push(item)
+      return next
+    })
   }, [])
 
   const insertOneContributionRemote = useCallback(async (d, imageBlob, opts = {}) => {
@@ -455,6 +467,7 @@ export function MosaicProvider({ children }) {
       setSelectedPremiumId,
       refresh,
       addDraftContribution,
+      bringDraftToFront,
       persistDraftsToSupabase,
       updateContributionGeometry,
       updateContributionMask,
@@ -481,6 +494,7 @@ export function MosaicProvider({ children }) {
       selectedPremiumId,
       refresh,
       addDraftContribution,
+      bringDraftToFront,
       persistDraftsToSupabase,
       updateContributionGeometry,
       updateContributionMask,

@@ -173,7 +173,7 @@ function ContributionGroup({
   idAttr,
   isStageListening,
   onDragEnd,
-  onClick,
+  onSelectDraft,
   onTransformEnd,
   /** Sur l’éditeur : assombrir les contributions déjà enregistrées. Sur l’aperçu récap : pleine luminosité. */
   dimSavedContributions = true,
@@ -187,6 +187,13 @@ function ContributionGroup({
   const savedDim =
     !dimSavedContributions || interactive ? 1 : 0.78
 
+  const handleSelect = interactive
+    ? (e) => {
+        e.cancelBubble = true
+        onSelectDraft?.()
+      }
+    : undefined
+
   return (
     <Group
       id={idAttr}
@@ -197,7 +204,8 @@ function ContributionGroup({
       height={contribution.height}
       rotation={contribution.rotation}
       draggable={interactive}
-      onClick={interactive ? onClick : undefined}
+      onClick={handleSelect}
+      onTap={handleSelect}
       clipFunc={clipFunc}
       onDragEnd={interactive ? onDragEnd : undefined}
       onTransformEnd={interactive ? onTransformEnd : undefined}
@@ -230,6 +238,7 @@ export function CanvasStage({ variant = 'editor' }) {
     loading: mosaicListLoading,
     selectedPremiumId,
     setSelectedPremiumId,
+    bringDraftToFront,
     updateContributionGeometry,
     updateContributionMask,
     updateContributionImage,
@@ -470,6 +479,14 @@ export function CanvasStage({ variant = 'editor' }) {
       })
     },
     [cellWidth, cellHeight, stageWidth, stageHeight, updateContributionGeometry],
+  )
+
+  const selectDraftOnCanvas = useCallback(
+    (id) => {
+      bringDraftToFront(id)
+      setSelectedPremiumId(id)
+    },
+    [bringDraftToFront, setSelectedPremiumId],
   )
 
   const handleTransformEndCommon = useCallback(
@@ -749,8 +766,8 @@ export function CanvasStage({ variant = 'editor' }) {
                   contribution={c}
                   interactive={!isPreview && c.isDraft === true}
                   dimSavedContributions={!isPreview}
-                  onClick={
-                    isPreview ? undefined : () => setSelectedPremiumId(c.id)
+                  onSelectDraft={
+                    isPreview ? undefined : () => selectDraftOnCanvas(c.id)
                   }
                   onDragEnd={(e) => handleDragEndCommon(c, e.target)}
                   onTransformEnd={(e) => handleTransformEndCommon(c, e.target)}
@@ -764,8 +781,8 @@ export function CanvasStage({ variant = 'editor' }) {
                   contribution={c}
                   interactive={!isPreview && c.isDraft === true}
                   dimSavedContributions={!isPreview}
-                  onClick={
-                    isPreview ? undefined : () => setSelectedPremiumId(c.id)
+                  onSelectDraft={
+                    isPreview ? undefined : () => selectDraftOnCanvas(c.id)
                   }
                   onDragEnd={(e) => handleDragEndCommon(c, e.target)}
                   onTransformEnd={(e) => handleTransformEndCommon(c, e.target)}

@@ -23,6 +23,8 @@ export function LayerImagePanel() {
     cellHeight,
     loading,
     selectedPremiumId,
+    setSelectedPremiumId,
+    bringDraftToFront,
   } = useMosaic()
   const { stageWidth, stageHeight } = useStageLayout()
 
@@ -114,6 +116,19 @@ export function LayerImagePanel() {
                     ? 'layer-panel__item layer-panel__item--selected'
                     : 'layer-panel__item'
                 }
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  bringDraftToFront(c.id)
+                  setSelectedPremiumId(c.id)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    bringDraftToFront(c.id)
+                    setSelectedPremiumId(c.id)
+                  }
+                }}
               >
                 <div className="layer-panel__thumb">
                   <img src={c.imageUrl} alt="" />
